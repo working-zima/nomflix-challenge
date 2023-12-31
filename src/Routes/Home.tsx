@@ -42,6 +42,20 @@ const Overview = styled.p`
 const Slider = styled.div`
   position: relative;
   top: -100px;
+  text-align: center;
+`;
+
+interface ArrowProps {
+  direction: "left" | "right";
+}
+
+const Arrow = styled.div<ArrowProps>`
+  font-size: 3rem;
+  position: absolute;
+  top: 100px;
+  transform: translateY(-50%);
+  ${({ direction }) => direction === "left" && "left: 0.8rem;"}
+  ${({ direction }) => direction === "right" && "right: 0.8rem;"};
 `;
 
 const Row = styled(motion.div)`
@@ -50,6 +64,7 @@ const Row = styled(motion.div)`
   grid-template-columns: repeat(6, 1fr);
   position: absolute;
   width: 100%;
+  padding: 0 3rem;
 `;
 
 const Box = styled(motion.div)<{ $bgPhoto: string }>`
@@ -126,15 +141,15 @@ const BigOverview = styled.p`
 `;
 
 const rowVariants = {
-  hidden: {
-    x: window.outerWidth + 5,
-  },
+  entry: (isBack: boolean) => ({
+    x: isBack ? -window.outerWidth - 5 : window.outerWidth + 5,
+  }),
   visible: {
     x: 0,
   },
-  exit: {
-    x: -window.outerWidth - 5,
-  },
+  exit: (isBack: boolean) => ({
+    x: isBack ? window.outerWidth + 5 : -window.outerWidth - 5,
+  }),
 };
 
 const boxVariants = {
@@ -158,6 +173,7 @@ const offset = 6;
 function Home() {
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  const [isBack, setIsBack] = useState(false);
   const history = useHistory();
   const { scrollY } = useViewportScroll();
   const bigMovieMatch = useRouteMatch<{ movieId: string }>("/movies/:movieId");
@@ -166,13 +182,25 @@ function Home() {
     getMovies
   );
 
-  const incraseIndex = () => {
+  const increaseIndex = () => {
     if (data) {
       if (leaving) return;
       toggleLeaving();
+      setIsBack(false);
       const totalMovies = data.results.length - 1;
       const maxIndex = Math.floor(totalMovies / offset) - 1;
+      console.log(index);
       setIndex((prev) => (prev === maxIndex ? 0 : prev + 1));
+    }
+  };
+  const decreaseIndex = () => {
+    if (data) {
+      if (leaving) return;
+      toggleLeaving();
+      setIsBack(true);
+      const totalMovies = data.results.length - 1;
+      const maxIndex = Math.floor(totalMovies / offset) - 1;
+      setIndex((prev) => (prev === 0 ? maxIndex : prev - 1));
     }
   };
   const toggleLeaving = () => setLeaving((prev) => !prev);
@@ -195,17 +223,21 @@ function Home() {
       ) : (
         <>
           <Banner
-            onClick={incraseIndex}
             $bgPhoto={makeImagePath(data?.results[0].backdrop_path || "")}
           >
             <Title>{data?.results[0].title}</Title>
             <Overview>{data?.results[0].overview}</Overview>
           </Banner>
           <Slider>
-            <AnimatePresence initial={false} onExitComplete={toggleLeaving}>
+            <AnimatePresence
+              custom={isBack}
+              initial={false}
+              onExitComplete={toggleLeaving}
+            >
               <Row
+                custom={isBack}
                 variants={rowVariants}
-                initial="hidden"
+                initial="entry"
                 animate="visible"
                 exit="exit"
                 transition={{ type: "tween", duration: 1 }}
@@ -235,6 +267,12 @@ function Home() {
                   ))}
               </Row>
             </AnimatePresence>
+            <Arrow direction="left" onClick={decreaseIndex}>
+              &lt;
+            </Arrow>
+            <Arrow direction="right" onClick={increaseIndex}>
+              &gt;
+            </Arrow>
           </Slider>
           <AnimatePresence>
             {bigMovieMatch ? (
